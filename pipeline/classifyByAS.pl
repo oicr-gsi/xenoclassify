@@ -10,8 +10,8 @@ if ($num_args != 2) {
  
 # assign arguments to script variables 
 # example input: 6816873 
-my $mouseBam="/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/${ARGV[0]}/bwa/mm10/${ARGV[1]}.bam"; 
-my $humanBam="/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/${ARGV[0]}/bwa/hg19/${ARGV[1]}.bam"; 
+my $mouseBam="/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/${ARGV[0]}/bwa/mm10/${ARGV[1]}_sorted.bam"; 
+my $humanBam="/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/${ARGV[0]}/bwa/hg19/${ARGV[1]}_sorted.bam"; 
 # my $outputFile="/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/bams/${ARGV[0]}/hg19/notMouse/twoReads/${ARGV[1]}.sam"; # change to bam if possible 
 
 # output files
@@ -134,3 +134,4 @@ close $BOTH;
 close $AMBIGUOUS;
 close $NEITHER;
 # close $OUT;
+
