@@ -33,7 +33,7 @@ def runXenome(xenome_dir, project, SWID, index, read1, read2):
 
 # extract, tag, concatenate, and sort read names
 def extractAndTag(class_file_name, o_file, tag):
-	os.system("cd {:s}{:s}; qsub -cwd -b y -N _{:s}_extractAndTag_{:s} -hold_jid _{:s}_run_xenome -l h_vmem=10g -m beas -M \"Heather.D'Souza@oicr.on.ca\" \"module load python; python ../../../scripts/extractAndTag.py {:s} {:s} {:s}\""
+	os.system("cd {:s}{:s}; qsub -cwd -b y -N _{:s}_extractAndTag_{:s} -hold_jid _{:s}_run_xenome -l h_vmem=20g -m beas -M \"Heather.D'Souza@oicr.on.ca\" \"module load python; python ../../../scripts/extractAndTag.py {:s} {:s} {:s}\""
 		.format(xenome_dir, SWID, SWID, tag, SWID, class_file_name, o_file, tag))
 
 def concatenateAndSort(graft, host, both, ambiguous, neither, SWID):
