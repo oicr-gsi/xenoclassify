@@ -1,7 +1,7 @@
 # check number of arguments passed is correct
 def checkArguments():
 	if len(sys.argv) != 4:
-		print "Usage: python classifyByAS.py mouse.bam human.bam ouput_dir"
+		print("Usage: python classifyByAS.py mouse.bam human.bam ouput_dir")
 		sys.exit()
 
 def initializeVariables():
@@ -34,9 +34,9 @@ def filter_bam(bam, species):
 	secondary = pysam.AlignmentFile("{:s}_secondary.bam".format(species), "wb", template=sam)	
 	for read in sam.fetch():
 		if not read.is_secondary:
-			primary.write("{:s}\n".format(read))
+			primary.write(read)
 		else:
-			secondary.write("{:s}\n".format(read))
+			secondary.write(read)
 	return sam, primary, secondary
 
 def getData(read): # check ouput of read.get_tag()
@@ -90,7 +90,7 @@ if __name__ == '__main__':
 	import sys
 	import argparse
 	import re
-	from itertools import izip
+	from itertools import zip_longest 
 
 	# argument parser
 	# parser = argparse.ArgumentParser(description='Classify reads as host, graft, both, neither, or ambiguous.')
@@ -113,7 +113,7 @@ if __name__ == '__main__':
 	reads_human = [0,0]
 	
 	# iterate through file
-	for read_mouse, read_human in izip(mouse_sam.fetch(), human_sam.fetch()):
+	for read_mouse, read_human in zip_longest(mouse_primary.fetch(), human_primary.fetch(), fillvalue = None):
 		reads_mouse[read_count] = read_mouse
 		reads_human[read_count] = read_human
 		read_count += 1
