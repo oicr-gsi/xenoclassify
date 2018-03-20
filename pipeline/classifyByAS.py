@@ -24,28 +24,28 @@ def initializeVariables():
 	neither_count = 0;
 	ambiguous_count = 0; 
 	total_count = 0; 
+
 	return (mouse_bam, human_bam, output_dir, graft, host, both, ambiguous, neither,
 		host_count, graft_count, both_count, neither_count, ambiguous_count, total_count)
 
 # filter primary and secondary alignments
-def filter_bam(bam, species):
-	sam = pysam.AlignmentFile(bam, "rb")
-	primary = pysam.AlignmentFile("{:s}_primary.bam".format(species), "wb", template=sam)
-	secondary = pysam.AlignmentFile("{:s}_secondary.bam".format(species), "wb", template=sam)	
-	for read in sam.fetch():
-		if not read.is_secondary:
-			primary.write(read)
-		else:
-			secondary.write(read)
-	return sam, primary, secondary
+def filter_bam(bam):
+	cmd_header = ['samtools', 'view', '-H', bam]
+	cmd_primary = ['samtools', 'view', '-F', '256', bam]
+	cmd_secondary = ['samtools', 'view', '-f', '256', bam]
+	header = subprocess.Popen(cmd_header, stdout=subprocess.PIPE).stdout.readline
+	primary = subprocess.Popen(cmd_primary, stdout=subprocess.PIPE).stdout.readline 
+	secondary = subprocess.Popen(cmd_secondary, stdout=subprocess.PIPE).stdout.readline
+	return header, primary, secondary
 
 def getData(read): # check ouput of read.get_tag()
-	name = read.query_name()
-	alignment_score = read.get_tag('As', with_value_type=False)
+	read = re.sub('\s+',' ',read).strip()
+	name = read.split(' ')[0].strip()
+	alignment_score = int(re.findall('(?<=AS:i:)([0-9]*)', read)[0])
 	return name, alignment_score
 
 def checkReadNames(mouse_read_1_name, mouse_read_2_name, human_read_1_name, human_read_2_name):
-	if mouse_read_1_name == mouse_read_2_name and human_read_1_name == human_read_2_name and mouse_read_1_name == human_read_1_name:
+	if not (mouse_read_1_name == mouse_read_2_name and human_read_1_name == human_read_2_name and mouse_read_1_name == human_read_1_name):
  		sys.exit("read names do not match: M1:{:s} M2:{:s} H1:{:s} H2:{:s}\n".format(mouse_read_1_name, mouse_read_2_name, human_read_1_name, human_read_2_name))
 
 def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, name, host, host_count, graft, graft_count,
@@ -86,36 +86,33 @@ def displayOutput(percentages):
 if __name__ == '__main__':
 	
 	# import required modules
-	import pysam 
+	import subprocess
 	import sys
 	import argparse
 	import re
-	from itertools import zip_longest 
-
-	# argument parser
-	# parser = argparse.ArgumentParser(description='Classify reads as host, graft, both, neither, or ambiguous.')
-	# parser.add_argument('-m', '--mouse_bam', help='bam file for reads aligned to mouse', type=str, required=True)
-	# parser.add_argument('-h', '--human_bam', help='bam file for reads aligned to human', type=str, required=True)
-	# parser.add_argument('-o', '--output_dir', help='output directory for output bam and fastq files', type=str, required=True)
-	# args = parser.parse_args(sys.argv)
-	# mouse_bam = 
+	
+	try:
+    	# Python 3
+		from itertools import zip_longest
+	except ImportError:
+    	# Python 2
+		from itertools import izip_longest as zip_longest
 
 	checkArguments()
 	(mouse_bam, human_bam, output_dir, graft, host, both, ambiguous, neither, host_count, 
 		graft_count, both_count, neither_count, ambiguous_count, total_count) = initializeVariables()
 	
-	mouse_sam, mouse_primary, mouse_secondary = filter_bam(mouse_bam, 'mouse') # change variable names to graft_bam and host_bam?
-	human_sam, human_primary, human_secondary = filter_bam(human_bam, 'human')
+	mouse_header, mouse_primary, mouse_secondary = filter_bam(mouse_bam) # change variable names to graft_bam and host_bam?
+	human_header, human_primary, human_secondary = filter_bam(human_bam)
 	
-	# fetch() only reads in one read at a time. read_count ensures that the following methods run only if two reads have been read in
 	read_count = 0 	
 	reads_mouse = [0,0]
 	reads_human = [0,0]
 	
 	# iterate through file
-	for read_mouse, read_human in zip_longest(mouse_primary.fetch(), human_primary.fetch(), fillvalue = None):
-		reads_mouse[read_count] = read_mouse
-		reads_human[read_count] = read_human
+	for read_mouse, read_human in zip_longest(iter(mouse_primary,''), iter(human_primary,'')):
+		reads_mouse[read_count] = read_mouse.decode('utf-8')
+		reads_human[read_count] = read_human.decode('utf-8')
 		read_count += 1
 		if read_count % 2 == 0:
 			read_count = 0
@@ -129,4 +126,4 @@ if __name__ == '__main__':
 
 	percentages = calculatePercentages(graft_count, host_count, both_count, ambiguous_count, neither_count, total_count)
 	displayOutput(percentages)
-		
+	
