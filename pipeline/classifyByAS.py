@@ -1,14 +1,23 @@
 # check number of arguments passed is correct
-def checkArguments():
-	if len(sys.argv) != 4:
-		print("Usage: python classifyByAS.py mouse.bam human.bam ouput_dir")
-		sys.exit()
+# def checkArguments():
+# 	if len(sys.argv) != 4:
+# 		print("Usage: python classifyByAS.py mouse.bam human.bam ouput_dir")
+# 		sys.exit()
 
-def initializeVariables():
+def parseInput ():
+	parser = argparse.ArgumentParser(description='Classify reads as host, graft, both, neither, or ambiguous.')
+	parser.add_argument('-M', '--mouse', help='bam file for reads aligned to mouse', type=str, required=True)
+	parser.add_argument('-H','--human', help='bam file for reads aligned to human', type=str, required=True)
+	parser.add_argument('-O', '--output', help='output directory for output bam and fastq files', type=str, required=True)
+	args = parser.parse_args()
+	print(args)
+	return args
+
+def initializeVariables(args):
 	# assign arguments to script variables
-	mouse_bam = sys.argv[1]
-	human_bam = sys.argv[2]
-	output_dir = sys.argv[3]
+	mouse_bam = args.mouse
+	human_bam = args.human
+	output_dir = args.output
 
 	# create output files
 	graft = open("{:s}/graft.txt".format(output_dir),"w")
@@ -99,7 +108,7 @@ def displayOutput(percentages):
 if __name__ == '__main__':
 	
 	# import required modules
-	import pysam 
+	# import pysam 
 	import sys
 	import argparse
 	import re
@@ -112,9 +121,9 @@ if __name__ == '__main__':
 		from itertools import izip_longest as zip_longest
 
 	# checkArguments()
+	args = parseInput()
 	(mouse_bam, human_bam, output_dir, graft, host, both, ambiguous, neither, host_count, 
-	 	graft_count, both_count, ambiguous_count, neither_count, total_count) = initializeVariables()
-	
+	 	graft_count, both_count, ambiguous_count, neither_count, total_count) = initializeVariables(args)
 	mouse_sam, mouse_primary, mouse_secondary, count_primary, count_secondary = filter_bam(mouse_bam, 'mouse') # change variable names to graft_bam and host_bam?
 	human_sam, human_primary, human_secondary, count_primary, count_secondary = filter_bam(human_bam, 'human')
 	
