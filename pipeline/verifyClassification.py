@@ -58,7 +58,6 @@ def outputResults (correct, incorrect, totals, g_correct, h_correct, b_correct, 
 	print "Both: {:.1f}%".format(b_correct)
 	print "Neither: {:.1f}%".format(n_correct)
 	print "Ambiguous: {:.1f}%".format(a_correct)
-	# print "Reads Classified Incorrectly: {:.1f}%".format(percentage_incorrect)
 
 if __name__ == '__main__':
 	

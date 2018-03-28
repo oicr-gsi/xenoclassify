@@ -15,11 +15,11 @@ my $humanBam="/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_pr
 # my $outputFile="/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/bams/${ARGV[0]}/hg19/notMouse/twoReads/${ARGV[1]}.sam"; # change to bam if possible 
 
 # output files
-(open my $GRAFT, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/${ARGV[0]}/bwa/hg19/classifyByAS_results/${ARGV[1]}/graft.txt");
-(open my $HOST, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/${ARGV[0]}/bwa/hg19/classifyByAS_results/${ARGV[1]}/host.txt");
-(open my $BOTH, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/${ARGV[0]}/bwa/hg19/classifyByAS_results/${ARGV[1]}/both.txt");
-(open my $NEITHER, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/${ARGV[0]}/bwa/hg19/classifyByAS_results/${ARGV[1]}/neither.txt");
-(open my $AMBIGUOUS, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/${ARGV[0]}/bwa/hg19/classifyByAS_results/${ARGV[1]}/ambiguous.txt");
+(open my $GRAFT, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_threshold/graft.txt");
+(open my $HOST, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_threshold/host.txt");
+(open my $BOTH, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_threshold/both.txt");
+(open my $NEITHER, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_threshold/neither.txt");
+(open my $AMBIGUOUS, ">", "/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_threshold/ambiguous.txt");
  
 # open bams
 (open my $MOUSE,"samtools view -F 256  $mouseBam |") || die "unable to open mouse bam: $mouseBam";  
@@ -63,13 +63,17 @@ while($mouserec1=<$MOUSE>){
         chomp $humanrec2;
 
         #get alignment scores
-        my @AS_m1 = ($mouserec1 =~ m/AS:i:([0-9]*)/);
-        my @AS_m2 = ($mouserec2 =~ m/AS:i:([0-9]*)/);
-        my @AS_h1 = ($humanrec1 =~ m/AS:i:([0-9]*)/);
-        my @AS_h2 = ($humanrec1 =~ m/AS:i:([0-9]*)/);
+        my @mr1_AS = ($mouserec1 =~ m/AS:i:([0-9]*)/);
+        my @mr2_AS = ($mouserec2 =~ m/AS:i:([0-9]*)/);
+        my @hr1_AS = ($humanrec1 =~ m/AS:i:([0-9]*)/);
+        my @hr2_AS = ($humanrec2 =~ m/AS:i:([0-9]*)/);
 
         my @hfields1=split /\t/,$humanrec1;
         my @hfields2=split /\t/,$humanrec2;
+
+        my $mean = ($mr1_AS[0] + $mr2_AS[0] + $hr1_AS[0] + $hr2_AS[0])/4;
+        my $low = $mean - 5;
+        my $high = $mean + 5;
 
         # check that query names are the same
         if (!((($mfields1[0] eq $mfields2[0]) && ($hfields1[0] eq $hfields2[0])) && $mfields1[0] eq $hfields1[0])){
@@ -77,29 +81,34 @@ while($mouserec1=<$MOUSE>){
         }
         
         ###### distinguish between reads that have not aligned, partially aligned, and fully aligned
-        if (($AS_m1[0] > 104 || $AS_m2[0] > 104) && $AS_h1[0] < 104 && $AS_h2[0] < 104)
+        if ($mr1_AS[0] + $mr2_AS[0] < 40 && $hr1_AS[0] + $hr2_AS[0] < 40)
         {
-            print $HOST "$hfields1[0]\n";
-            $hostCount++
+            print $NEITHER "$hfields1[0]\t$mr1_AS[0]\t$mr2_AS[0]\t$hr1_AS[0]\t$hr2_AS[0]\n";
+            $neitherCount++;
+            
         }
-        elsif ($AS_m1[0] < 104 && $AS_m2[0] < 104 && ($AS_h1[0] > 104 || $AS_h2[0] > 104))
+        elsif ((($mr1_AS[0] > $low && $mr1_AS[0] < $high) 
+            && ($mr2_AS[0] > $low && $mr2_AS[0] < $high) 
+            && ($hr1_AS[0] > $low && $hr1_AS[0] < $high) 
+            && ($hr2_AS[0] > $low && $hr2_AS[0] < $high)) 
+            || abs(($mr1_AS[0] + $mr2_AS[0]) - ($hr1_AS[0] + $hr2_AS[0])) <= 5)
         {
-            print $GRAFT "$hfields1[0]\n";
+            print $BOTH "$hfields1[0]\t$mr1_AS[0]\t$mr2_AS[0]\t$hr1_AS[0]\t$hr2_AS[0]\n";
+            $bothCount++;
+        }
+        elsif ($mr1_AS[0] + $mr2_AS[0] < $hr1_AS[0] + $hr2_AS[0])
+        {
+            print $GRAFT "$hfields1[0]\t$mr1_AS[0]\t$mr2_AS[0]\t$hr1_AS[0]\t$hr2_AS[0]\n";
             $graftCount++
         }
-        elsif ($AS_m1[0] > 104 && $AS_m2[0] > 104 && $AS_h1[0] > 104 && $AS_h2[0] > 104)
+        elsif ($mr1_AS[0] + $mr2_AS[0] > $hr1_AS[0] + $hr2_AS[0])
         {
-            print $BOTH "$hfields1[0]\n";
-            $bothCount++
-        }
-        elsif ($AS_m1[0] < 10 && $AS_m2[0] < 10 && $AS_h1[0] < 10 && $AS_h2[0] < 10)
-        {
-            print $NEITHER "$hfields1[0]\n";
-            $neitherCount++
+            print $HOST "$hfields1[0]\t$mr1_AS[0]\t$mr2_AS[0]\t$hr1_AS[0]\t$hr2_AS[0]\n";
+            $hostCount++
         }
         else
         {
-            print $AMBIGUOUS "$hfields1[0]\n";
+            print $AMBIGUOUS "$hfields1[0]\t$mr1_AS[0]\t$mr2_AS[0]\t$hr1_AS[0]\t$hr2_AS[0]\n";
             $ambiguousCount++
         }
         ###### print non-mouse only reads to sam file
@@ -134,4 +143,3 @@ close $BOTH;
 close $AMBIGUOUS;
 close $NEITHER;
 # close $OUT;
-
