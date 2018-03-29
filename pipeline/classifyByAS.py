@@ -6,12 +6,29 @@
 
 def parse_input ():
 	parser = argparse.ArgumentParser(description='Classify reads as host, graft, both, neither, or ambiguous.')
-	parser.add_argument('-M', '--mouse', help='bam file for reads aligned to mouse', type=str, required=True)
-	parser.add_argument('-H','--human', help='bam file for reads aligned to human', type=str, required=True)
-	parser.add_argument('-O', '--output', help='output directory for output bam and fastq files', type=str, required=True)
+	parser.add_argument('-M', '--mouse', help='Bam file for reads aligned to mouse' , type=lambda x: is_valid_file(parser, x), required=True)
+	parser.add_argument('-H','--human', help='Bam file for reads aligned to human' , type=lambda x: is_valid_file(parser, x), required=True)
+	parser.add_argument('-O', '--output', help='Output directory for output bam and fastq files. Use "." for current working directory', type=lambda x: is_valid_directory(parser, x), required=True)
 	args = parser.parse_args()
 	print(args)
 	return args 
+
+# error handling
+def is_valid_file(parser, arg):
+    if not os.path.isfile(arg):
+        parser.error("The file %s does not exist" % arg)
+    # if not re.search(r'(?<=[.])\w+',arg).group(0) == 'bam':
+    #  	parser.error("The file %s is not a bam file" % arg)
+    else:
+    	return arg
+
+def is_valid_directory(parser, arg):
+	if not os.path.exists(arg):
+		parser.error("The output directory %s does not exist" % arg)
+	else:
+		if arg == '.':
+			arg = os.getcwd()
+		return arg
 
 def initialize_variables(args):
 	# assign arguments to script variables
@@ -108,10 +125,11 @@ def display_output(percentages):
 if __name__ == '__main__':
 	
 	# import required modules
-	# import pysam 
+	import pysam 
 	import sys
 	import argparse
 	import re
+	import os
 	
 	try:
 		# Python 3
