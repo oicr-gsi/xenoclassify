@@ -4,16 +4,16 @@
 # 		print("Usage: python classifyByAS.py mouse.bam human.bam ouput_dir")
 # 		sys.exit()
 
-def parseInput ():
+def parse_input ():
 	parser = argparse.ArgumentParser(description='Classify reads as host, graft, both, neither, or ambiguous.')
 	parser.add_argument('-M', '--mouse', help='bam file for reads aligned to mouse', type=str, required=True)
 	parser.add_argument('-H','--human', help='bam file for reads aligned to human', type=str, required=True)
 	parser.add_argument('-O', '--output', help='output directory for output bam and fastq files', type=str, required=True)
 	args = parser.parse_args()
 	print(args)
-	return args
+	return args 
 
-def initializeVariables(args):
+def initialize_variables(args):
 	# assign arguments to script variables
 	mouse_bam = args.mouse
 	human_bam = args.human
@@ -52,13 +52,13 @@ def filter_bam(bam, species):
 			count_secondary += 1
 	return sam, primary, secondary, count_primary, count_secondary
 
-def getData(read): # check ouput of read.get_tag()
+def get_data(read): # check ouput of read.get_tag()
 	name = read.query_name
 	alignment_score = read.get_tag('AS', with_value_type=False)
 	cigar = read.cigarstring
 	return name, alignment_score, cigar
 
-def checkReadNames(mouse_read_1_name, mouse_read_2_name, human_read_1_name, human_read_2_name):
+def check_read_names(mouse_read_1_name, mouse_read_2_name, human_read_1_name, human_read_2_name):
 	if not (mouse_read_1_name == mouse_read_2_name and human_read_1_name == human_read_2_name and mouse_read_1_name == human_read_1_name):
  		sys.exit("read names do not match: M1:{:s} M2:{:s} H1:{:s} H2:{:s}\n".format(mouse_read_1_name, mouse_read_2_name, human_read_1_name, human_read_2_name))
 
@@ -91,7 +91,7 @@ def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, name, host, host_count, graft, graf
 	return graft_count, host_count, both_count, ambiguous_count, neither_count, total_count
 
 # calculate class percentages
-def calculatePercentages(graft_count, host_count, both_count, ambiguous_count, neither_count, total_count):
+def calculate_percentages(graft_count, host_count, both_count, ambiguous_count, neither_count, total_count):
 	percentages = ['','','','','']
 	percentages[0] = float(graft_count)/total_count*100
 	percentages[1] = float(host_count)/total_count*100
@@ -100,7 +100,7 @@ def calculatePercentages(graft_count, host_count, both_count, ambiguous_count, n
 	percentages[4] = float(neither_count)/total_count*100
 	return percentages
 
-def displayOutput(percentages):
+def display_output(percentages):
 	sys.stdout.write("Percentage of Reads in Each Class\n\nGraft:{:.2f}\nHost:{:.2f}\nBoth:{:.2f}\nAmbiguous:{:.2f}Neither:{:.2f}\n"
 		.format(percentages[0],percentages[1],percentages[2],percentages[3],percentages[4]))
 
@@ -121,9 +121,9 @@ if __name__ == '__main__':
 		from itertools import izip_longest as zip_longest
 
 	# checkArguments()
-	args = parseInput()
+	args = parse_input()
 	(mouse_bam, human_bam, output_dir, graft, host, both, ambiguous, neither, host_count, 
-	 	graft_count, both_count, ambiguous_count, neither_count, total_count) = initializeVariables(args)
+	 	graft_count, both_count, ambiguous_count, neither_count, total_count) = initialize_variables(args)
 	mouse_sam, mouse_primary, mouse_secondary, count_primary, count_secondary = filter_bam(mouse_bam, 'mouse') # change variable names to graft_bam and host_bam?
 	human_sam, human_primary, human_secondary, count_primary, count_secondary = filter_bam(human_bam, 'human')
 	
@@ -139,13 +139,13 @@ if __name__ == '__main__':
 		read_count += 1
 		if read_count % 2 == 0:
 			read_count = 0
-			mr1_name, mr1_AS, mr1_cigar = getData(reads_mouse[0])
-			mr2_name, mr2_AS, mr2_cigar = getData(reads_mouse[1])
-			hr1_name, hr1_AS, hr1_cigar = getData(reads_human[0])
-			hr2_name, hr2_AS, hr2_cigar = getData(reads_human[1])
-			checkReadNames(mr1_name, mr2_name, hr1_name, hr2_name)
+			mr1_name, mr1_AS, mr1_cigar = get_data(reads_mouse[0])
+			mr2_name, mr2_AS, mr2_cigar = get_data(reads_mouse[1])
+			hr1_name, hr1_AS, hr1_cigar = get_data(reads_human[0])
+			hr2_name, hr2_AS, hr2_cigar = get_data(reads_human[1])
+			check_read_names(mr1_name, mr2_name, hr1_name, hr2_name)
 			graft_count, host_count, both_count, ambiguous_count, neither_count, total_count = classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, 
  			hr1_name, host, host_count, graft, graft_count, both, both_count, ambiguous, ambiguous_count, neither, neither_count, total_count, mr1_cigar, mr2_cigar, hr1_cigar, hr2_cigar)
 
-	percentages = calculatePercentages(graft_count, host_count, both_count, ambiguous_count, neither_count, total_count)
-	displayOutput(percentages)
+	percentages = calculate_percentages(graft_count, host_count, both_count, ambiguous_count, neither_count, total_count)
+	display_output(percentages)
