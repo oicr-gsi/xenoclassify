@@ -37,11 +37,15 @@ def initialize_variables(args):
 	output_dir = args.output
 
 	# create output files
-	graft = open("{:s}/graft.txt".format(output_dir),"w")
-	host = open("{:s}/host.txt".format(output_dir),"w")
-	both = open("{:s}/both.txt".format(output_dir),"w")
-	ambiguous = open("{:s}/ambiguous.txt".format(output_dir),"w")
-	neither = open("{:s}/neither.txt".format(output_dir),"w")
+	# FASTQs
+	graft = open("{:s}/graft.fastq".format(output_dir),"w")
+	host = open("{:s}/host.fastq".format(output_dir),"w")
+	both = open("{:s}/both.fastq".format(output_dir),"w")
+	ambiguous = open("{:s}/ambiguous.fastq".format(output_dir),"w")
+	neither = open("{:s}/neither.fastq".format(output_dir),"w")
+
+	# BAMs
+	out_bam = pysam.AlignmentFile("output.bam", "wb", template = pysam.AlignmentFile(human_bam, "rb"))
 
 	# initialize counters
 	host_count = 0; 
@@ -51,15 +55,15 @@ def initialize_variables(args):
 	ambiguous_count = 0; 
 	total_count = 0; 
 	return (mouse_bam, human_bam, output_dir, graft, host, both, ambiguous, neither, host_count, 
-	 	graft_count, both_count, ambiguous_count, neither_count, total_count)
+	 	graft_count, both_count, ambiguous_count, neither_count, total_count, out_bam)
 
 # filter primary and secondary alignments
 def filter_bam(bam, species):
 	sam = pysam.AlignmentFile(bam, "rb")
 	primary = pysam.AlignmentFile("{:s}_primary.bam".format(species), "wb", template=sam)
 	secondary = pysam.AlignmentFile("{:s}_secondary.bam".format(species), "wb", template=sam)
-	count_primary=0
-	count_secondary=0	
+	count_primary = 0
+	count_secondary = 0	
 	for read in sam.fetch(until_eof=True):
 		if not read.is_secondary:
 			primary.write(read)
@@ -80,7 +84,7 @@ def check_read_names(mouse_read_1_name, mouse_read_2_name, human_read_1_name, hu
  		sys.exit("read names do not match: M1:{:s} M2:{:s} H1:{:s} H2:{:s}\n".format(mouse_read_1_name, mouse_read_2_name, human_read_1_name, human_read_2_name))
 
 def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, name, host, host_count, graft, graft_count,
-	both, both_count, ambiguous, ambiguous_count, neither, neither_count,  total_count, m1_cigar, m2_cigar, hr1_cigar, hr2_cigar):
+	both, both_count, ambiguous_count, neither, neither_count, total_count, m1_cigar, m2_cigar, hr1_cigar, hr2_cigar, read, out_bam):
 	
 	scores = [mr1_AS, mr2_AS, hr1_AS, hr2_AS]
 	sum_m = scores[0] + scores[1]
@@ -90,22 +94,32 @@ def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, name, host, host_count, graft, graf
 	high = mean + 5
 	
 	if sum_m < 40 and sum_h < 40:
-		neither.write('{:s}\n'.format(name))
+		# neither.write('{:s}\n'.format(name))
+		add_tag(read,'neither')
 		neither_count += 1
 	elif all(low < score < high for score in scores) or abs(sum_m - sum_h) <= 5:
-		both.write('{:s}\n'.format(name))
+		# both.write('{:s}\n'.format(name))
+		add_tag(read,'both')
 		both_count += 1
 	elif sum_m < sum_h:
-		graft.write('{:s}\n'.format(name))
+		# graft.write('{:s}\n'.format(name))
+		add_tag(read,'graft')
 		graft_count += 1
 	elif sum_m > sum_h:
-		host.write('{:s}\n'.format(name))
+		# host.write('{:s}\n'.format(name))
+		add_tag(read,'host')
 		host_count += 1
 	else:
-		ambiguous.write('{:s}\n'.format(name))
+		# ambiguous.write('{:s}\n'.format(name))
+		add_tag(read,'ambiguous')
 		ambiguous_count += 1
 	total_count += 1
 	return graft_count, host_count, both_count, ambiguous_count, neither_count, total_count
+
+def add_tag(read, category):
+	read.set_tag('CL',category)
+	out_bam.write(read)
+
 
 # calculate class percentages
 def calculate_percentages(graft_count, host_count, both_count, ambiguous_count, neither_count, total_count):
@@ -141,7 +155,7 @@ if __name__ == '__main__':
 	# checkArguments()
 	args = parse_input()
 	(mouse_bam, human_bam, output_dir, graft, host, both, ambiguous, neither, host_count, 
-	 	graft_count, both_count, ambiguous_count, neither_count, total_count) = initialize_variables(args)
+	 	graft_count, both_count, ambiguous_count, neither_count, total_count, out_bam) = initialize_variables(args)
 	mouse_sam, mouse_primary, mouse_secondary, count_primary, count_secondary = filter_bam(mouse_bam, 'mouse') # change variable names to graft_bam and host_bam?
 	human_sam, human_primary, human_secondary, count_primary, count_secondary = filter_bam(human_bam, 'human')
 	
@@ -163,7 +177,7 @@ if __name__ == '__main__':
 			hr2_name, hr2_AS, hr2_cigar = get_data(reads_human[1])
 			check_read_names(mr1_name, mr2_name, hr1_name, hr2_name)
 			graft_count, host_count, both_count, ambiguous_count, neither_count, total_count = classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, 
- 			hr1_name, host, host_count, graft, graft_count, both, both_count, ambiguous, ambiguous_count, neither, neither_count, total_count, mr1_cigar, mr2_cigar, hr1_cigar, hr2_cigar)
+ 			hr1_name, host, host_count, graft, graft_count, both, both_count, ambiguous_count, neither, neither_count, total_count, mr1_cigar, mr2_cigar, hr1_cigar, hr2_cigar, read_human, out_bam)
 
 	percentages = calculate_percentages(graft_count, host_count, both_count, ambiguous_count, neither_count, total_count)
 	display_output(percentages)
