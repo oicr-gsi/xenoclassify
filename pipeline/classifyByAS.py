@@ -6,7 +6,7 @@ def parse_input ():
 	parser.add_argument('-O', '--output', help='Output directory for output bam and fastq files. Use "." for current working directory', type=lambda x: is_valid_directory(parser, x), required=True)
 	parser.add_argument('-b', '--bam', help='Ouput BAM file with reads tagged according to assigned class', action='store_true')
 	parser.add_argument('-f', '--fastq', help='Output FASTQ files', action='store_true')
-	parser.add_argument('-p', '--prefix', help='Prefix for BAM and FASTQ file names')
+	parser.add_argument('-p', '--prefix', help='Prefix for BAM and FASTQ file names', type=str)
 	args = parser.parse_args()
 	return parser, args 
 
@@ -42,12 +42,15 @@ def initialize_user_input(args):
 	prefix = args.prefix
 	return mouse_bam, human_bam, output_dir, is_bam, is_fastq, prefix
 
-def create_fastq_output(output_dir, prefix):
-	# create output files
+def is_prefix(prefix):
 	if prefix is None:
 		prefix = ""
 	else:
 		prefix = prefix + "_"
+	return prefix
+
+def create_fastq_output(output_dir, prefix):
+	# create output files
 
 	graft_1 = open("{:s}/{:s}graft_1.fastq".format(output_dir, prefix),"w")
 	host_1 = open("{:s}/{:s}host_1.fastq".format(output_dir, prefix),"w")
@@ -79,9 +82,9 @@ def create_fastq_output(output_dir, prefix):
 
 	return fastq_output_1, fastq_output_2
 
-def create_bam_output(bam, output_dir):
+def create_bam_output(bam, output_dir, prefix):
 	# BAMs
-	out_bam = AlignmentFile("{:s}/output.bam".format(output_dir), "wb", template = bam)
+	out_bam = AlignmentFile("{:s}/{:s}output.bam".format(output_dir, prefix), "wb", template = bam)
 	return out_bam
 	
 def initialize_counters():
@@ -104,14 +107,23 @@ def initialize_counters():
 
 # filter primary and secondary alignments
 def filter_bam(bam, species):
-	primary = AlignmentFile("{:s}_primary.bam".format(species), "wb", template=bam)
-	secondary = AlignmentFile("{:s}_secondary.bam".format(species), "wb", template=bam)
+	primary = AlignmentFile("{:s}_primary.bam".format(species), "wb", template = bam)
+	secondary = AlignmentFile("{:s}_secondary.bam".format(species), "wb", template = bam)
 	for read in bam.fetch(until_eof=True):
 		if not read.is_secondary:
 			primary.write(read)
 		else:
 			secondary.write(read)
 	return primary, secondary
+
+def reopen_bam(bam):
+	bam.close()
+	bam = AlignmentFile("human_secondary.bam", 'rb')
+	return bam
+
+def get_secondary_alignment(secondary_bam):
+	secondary_alignment = next(secondary_bam)
+	return secondary_alignment
 
 def get_data(read): # check ouput of read.get_tag()
 	name = read.query_name
@@ -148,11 +160,25 @@ def increment_counters(classification, counters):
 	counters[classification] += 1
 	counters["total"] += 1
 
+def check_secondary_alignments(name, secondary_bam, secondary_alignment):
+	secondary_alignments = []
+	while secondary_alignment.query_name == name:
+		secondary_alignments.append(secondary_alignment)
+		try:
+			secondary_alignment = next(secondary_bam)
+		except StopIteration:
+			break
+	return secondary_alignments, secondary_alignment
+
+def append_lists(primary_alignments, secondary_alignments):
+	all_reads = primary_alignments + secondary_alignments
+	return all_reads
+
 def add_tag(read, category, output_bam):
 		read.set_tag('CL',category)
 		output_bam.write(read)
 
-def add_to_fastq(read, fastq):
+def convert_to_fastq(read, fastq):
 	fastq.write("@{:s}\n{:s}\n+\n{:s}\n".format(read.query_name, read.query_sequence, "".join([chr(x + 33) for x in read.query_qualities])))
 
 # calculate class percentages
@@ -185,17 +211,23 @@ if __name__ == '__main__':
 	parser, args = parse_input()
 	is_prefix_dependent(parser, args)
 	mouse_bam, human_bam, output_dir, is_bam, is_fastq, prefix = initialize_user_input(args)
+	prefix = is_prefix(prefix)
 	if is_fastq:
 		fastq_output_1, fastq_output_2 = create_fastq_output(output_dir, prefix)
 	if is_bam:
-		output_bam = create_bam_output(human_bam, output_dir)
+		output_bam = create_bam_output(human_bam, output_dir, prefix)
 	counters = initialize_counters()
 
 	# mouse_primary, mouse_secondary = filter_bam(mouse_bam, 'mouse') # change variable names to graft_bam and host_bam?
 	# human_primary, human_secondary = filter_bam(human_bam, 'human')
-	human_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/classifyByAS_results/new_rules/6816887/hg19_primary.bam', 'rb')
-	mouse_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/classifyByAS_results/new_rules/6816887/mm10_primary.bam', 'rb')	
-	
+	human_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/human_primary.bam', 'rb')
+	mouse_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/mouse_primary.bam', 'rb')	
+	human_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/human_secondary.bam', 'rb')
+	mouse_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/mouse_secondary.bam', 'rb')
+
+	human_secondary = reopen_bam(human_secondary)
+	secondary_alignment = get_secondary_alignment(human_secondary)
+
 	# fetch() only reads in one read at a time. read_count ensures that the following methods run only if two reads have been read in
 	read_count = 0 	
 	mouse_reads = [0,0]
@@ -216,12 +248,14 @@ if __name__ == '__main__':
 			check_read_names(mr1_name, mr2_name, hr1_name, hr2_name)
 			classification = classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS)
 			increment_counters(classification, counters)
+			secondary_alignments, secondary_alignment = check_secondary_alignments(hr1_name, human_secondary, secondary_alignment)
+			all_reads = append_lists(human_reads, secondary_alignments)
 			if is_bam:
-				for read in human_reads:
+				for read in all_reads:
 					add_tag(read, classification, output_bam)
 			if is_fastq:
-				add_to_fastq(human_reads[0], fastq_output_1[classification])
-				add_to_fastq(human_reads[1], fastq_output_2[classification])
+				convert_to_fastq(human_reads[0], fastq_output_1[classification])
+				convert_to_fastq(human_reads[1], fastq_output_2[classification])
 
 	# output
 	for key in counters:
