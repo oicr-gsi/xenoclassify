@@ -69,7 +69,7 @@ def create_fastq_output(output_dir, prefix):
 		"host": host_1,
 		"both": both_1,
 		"ambiguous": ambiguous_1,
-		"neither": neither_1,
+		"neither": neither_1
 	}
 
 	fastq_output_2 = {
@@ -77,7 +77,7 @@ def create_fastq_output(output_dir, prefix):
 		"host": host_2,
 		"both": both_2,
 		"ambiguous": ambiguous_2,
-		"neither": neither_2,
+		"neither": neither_2
 	}
 
 	return fastq_output_1, fastq_output_2
@@ -86,6 +86,22 @@ def create_bam_output(bam, output_dir, prefix):
 	# BAMs
 	out_bam = AlignmentFile("{:s}/{:s}output.bam".format(output_dir, prefix), "wb", template = bam)
 	return out_bam
+
+def create_fastq_lists():
+	graft = []
+	host = []
+	both = []
+	ambiguous = []
+	neither = []
+
+	fastq_list = {
+		"graft": graft,
+		"host": host,
+		"both": both,
+		"ambiguous": ambiguous,
+		"neither": neither
+	}
+	return fastq_list
 	
 def initialize_counters():
 	# initialize counters
@@ -174,12 +190,21 @@ def append_lists(primary_alignments, secondary_alignments):
 	all_reads = primary_alignments + secondary_alignments
 	return all_reads
 
-def add_tag(read, category, output_bam):
-		read.set_tag('CL',category)
+def add_tag(read, category, bam_list):
+	read.set_tag('CL',category)
+	bam_list.append(read)
+
+def convert_to_fastq(read, fastq_list):
+	read_fastq = "@{:s}\n{:s}\n+\n{:s}\n".format(read.query_name, read.query_sequence, "".join([chr(x + 33) for x in read.query_qualities]))
+	fastq_list.append(read_fastq)
+
+def write_bam(bam_list, output_bam):
+	for read in bam_list:
 		output_bam.write(read)
 
-def convert_to_fastq(read, fastq):
-	fastq.write("@{:s}\n{:s}\n+\n{:s}\n".format(read.query_name, read.query_sequence, "".join([chr(x + 33) for x in read.query_qualities])))
+def write_fastq(fastq_list, fastq):
+	for read in fastq_list:
+		fastq.write(read)
 
 # calculate class percentages
 def calculate_percentage(count, total_count):
@@ -220,12 +245,12 @@ if __name__ == '__main__':
 
 	# mouse_primary, mouse_secondary = filter_bam(mouse_bam, 'mouse') # change variable names to graft_bam and host_bam?
 	# human_primary, human_secondary = filter_bam(human_bam, 'human')
-	human_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/human_primary.bam', 'rb')
-	mouse_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/mouse_primary.bam', 'rb')	
-	human_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/human_secondary.bam', 'rb')
-	mouse_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/mouse_secondary.bam', 'rb')
+	human_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/human_primary.bam', 'rb')
+	mouse_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/mouse_primary.bam', 'rb')	
+	human_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/human_secondary.bam', 'rb')
+	mouse_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/mouse_secondary.bam', 'rb')
 
-	human_secondary = reopen_bam(human_secondary)
+	# human_secondary = reopen_bam(human_secondary)
 	secondary_alignment = get_secondary_alignment(human_secondary)
 
 	# fetch() only reads in one read at a time. read_count ensures that the following methods run only if two reads have been read in
@@ -233,6 +258,9 @@ if __name__ == '__main__':
 	mouse_reads = [0,0]
 	human_reads = [0,0]
 	percentages = []
+	fastq_lists_1 = create_fastq_lists()
+	fastq_lists_2 = create_fastq_lists()
+	bam_list = []
 
 	# iterate through file
 	for mouse_read, human_read in zip_longest(mouse_primary.fetch(until_eof=True), human_primary.fetch(until_eof=True)):
@@ -252,12 +280,19 @@ if __name__ == '__main__':
 			all_reads = append_lists(human_reads, secondary_alignments)
 			if is_bam:
 				for read in all_reads:
-					add_tag(read, classification, output_bam)
+					add_tag(read, classification, bam_list)
 			if is_fastq:
-				convert_to_fastq(human_reads[0], fastq_output_1[classification])
-				convert_to_fastq(human_reads[1], fastq_output_2[classification])
+				convert_to_fastq(human_reads[0], fastq_lists_1[classification])
+				convert_to_fastq(human_reads[1], fastq_lists_2[classification])
 
-	# output
+	# write to files
+	write_bam(bam_list, output_bam)
+	for fastq_list, fastq in zip_longest(fastq_lists_1, fastq_output_1):
+		write_fastq(fastq_list, fastq)
+	for fastq_list, fastq in zip_longest(fastq_lists_2, fastq_output_2):
+		write_fastq(fastq_list, fastq)
+
+	# stats
 	for key in counters:
 		percentages.append(calculate_percentage(counters[key],counters["total"]))
 	display_output(percentages)
