@@ -190,6 +190,17 @@ def display_output(percentages):
 	sys.stdout.write("Percentage of Reads in Each Class\n\nHost:{:.2f}\nGraft:{:.2f}\nBoth:{:.2f}\nAmbiguous:{:.2f}\nNeither:{:.2f}"
 		.format(percentages[0],percentages[1],percentages[2],percentages[3],percentages[4]))
 
+def close_file(file):
+	file.close()
+
+def remove_temp_bam(file, output_dir):
+	path = output_dir + '/' + file
+	try:
+		os.remove(path)
+	except OSError:
+		print ("Error: File %s does not exist." % (path))
+
+
 # output results
 if __name__ == '__main__':
 	
@@ -261,3 +272,18 @@ if __name__ == '__main__':
 	for key in counters:
 		percentages.append(calculate_percentage(counters[key],counters["total"]))
 	display_output(percentages)
+
+	# close files
+	if is_fastq:
+		for file in fastq_output_1:
+			close_file(file)
+		for file in fastq_output_2:
+			close_file(file)
+	if is_bam:
+		close_file(output_bam)
+
+	# remove temporary bams
+	for file_handle, file_name in [(human_primary, 'human_primary.bam'),(human_secondary, 'human_secondary.bam'),(mouse_primary, 'mouse_primary.bam'), (mouse_secondary, 'mouse_secondary.bam')]:
+		close_file(file_handle)
+		remove_temp_bam(file_name, output_dir)
+		
