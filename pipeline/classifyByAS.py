@@ -159,7 +159,7 @@ def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS):
 	low = mean - 5
 	high = mean + 5
 	
-	if sum_m < 40 and sum_h < 40:
+	if sum_m < 40 and sum_h < 40: 
 		classification = "neither"
 	elif all(low < score < high for score in scores) or abs(sum_m - sum_h) <= 5:
 		classification = "both"
@@ -190,21 +190,19 @@ def append_lists(primary_alignments, secondary_alignments):
 	all_reads = primary_alignments + secondary_alignments
 	return all_reads
 
-def add_tag(read, category, bam_list):
+def add_tag(read, category):
 	read.set_tag('CL',category)
-	bam_list.append(read)
+	return read
 
 def convert_to_fastq(read, fastq_list):
 	read_fastq = "@{:s}\n{:s}\n+\n{:s}\n".format(read.query_name, read.query_sequence, "".join([chr(x + 33) for x in read.query_qualities]))
 	fastq_list.append(read_fastq)
 
-def write_bam(bam_list, output_bam):
-	for read in bam_list:
-		output_bam.write(read)
+def write_to_bam(read, file):
+	file.write(read)
 
-def write_fastq(fastq_list, fastq):
-	for read in fastq_list:
-		fastq.write(read)
+def write_to_fastq(input_list, output_file):
+	output_file.writelines(input_list)
 
 # calculate class percentages
 def calculate_percentage(count, total_count):
@@ -260,7 +258,7 @@ if __name__ == '__main__':
 	percentages = []
 	fastq_lists_1 = create_fastq_lists()
 	fastq_lists_2 = create_fastq_lists()
-	bam_list = []
+	# bam_list = []
 
 	# iterate through file
 	for mouse_read, human_read in zip_longest(mouse_primary.fetch(until_eof=True), human_primary.fetch(until_eof=True)):
@@ -280,17 +278,17 @@ if __name__ == '__main__':
 			all_reads = append_lists(human_reads, secondary_alignments)
 			if is_bam:
 				for read in all_reads:
-					add_tag(read, classification, bam_list)
+					read = add_tag(read, classification)
+					write_to_bam(read, output_bam)
 			if is_fastq:
 				convert_to_fastq(human_reads[0], fastq_lists_1[classification])
 				convert_to_fastq(human_reads[1], fastq_lists_2[classification])
 
 	# write to files
-	write_bam(bam_list, output_bam)
 	for fastq_list, fastq in zip_longest(fastq_lists_1, fastq_output_1):
-		write_fastq(fastq_list, fastq)
+		write_to_fastq(fastq_list, fastq)
 	for fastq_list, fastq in zip_longest(fastq_lists_2, fastq_output_2):
-		write_fastq(fastq_list, fastq)
+		write_to_fastq(fastq_list, fastq)
 
 	# stats
 	for key in counters:
