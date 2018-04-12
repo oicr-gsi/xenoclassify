@@ -1,4 +1,3 @@
-
 def parse_input ():
 	parser = argparse.ArgumentParser(description='Classify reads as host, graft, both, neither, or ambiguous.')
 	parser.add_argument('-M', '--mouse', help='BAM file for reads aligned to mouse' , type=lambda x: is_valid_file(parser, x), required=True)
@@ -201,8 +200,15 @@ def convert_to_fastq(read, fastq_list):
 def write_to_bam(read, file):
 	file.write(read)
 
+def is_list_full(list_length):
+	if list_length % 300000 == 0:
+		return True
+	else:
+		return False
+
 def write_to_fastq(input_list, output_file):
 	output_file.writelines(input_list)
+	del input_list[:]
 
 # calculate class percentages
 def calculate_percentage(count, total_count):
@@ -283,12 +289,15 @@ if __name__ == '__main__':
 			if is_fastq:
 				convert_to_fastq(human_reads[0], fastq_lists_1[classification])
 				convert_to_fastq(human_reads[1], fastq_lists_2[classification])
+				if is_list_full(counters[classification]):
+					write_to_fastq(fastq_lists_1[classification], fastq_output_1[classification])
+					write_to_fastq(fastq_lists_2[classification], fastq_output_2[classification])
 
-	# write to files
-	for fastq_list, fastq in zip_longest(fastq_lists_1, fastq_output_1):
-		write_to_fastq(fastq_list, fastq)
-	for fastq_list, fastq in zip_longest(fastq_lists_2, fastq_output_2):
-		write_to_fastq(fastq_list, fastq)
+	# write left over reads
+	for current_list, current_file in zip_longest(fastq_lists_1.items(),fastq_output_1.items()):
+		write_to_fastq(current_list[1], current_file[1])
+	for current_list, current_file in zip_longest(fastq_lists_2.items(),fastq_output_2.items()):
+		write_to_fastq(current_list[1], current_file[1])
 
 	# stats
 	for key in counters:
