@@ -7,6 +7,9 @@ def parse_input ():
 	parser.add_argument('-b', '--bam', help='Ouput BAM file with reads tagged according to assigned class', action='store_true')
 	parser.add_argument('-f', '--fastq', help='Output FASTQ files', action='store_true')
 	parser.add_argument('-p', '--prefix', help='Prefix for BAM and FASTQ file names', type=str)
+	parser.add_argument('-n', '--neither-threshold', help='Alignment score below which all reads in a set are classified as "neither"', type=int, default=40)
+	parser.add_argument('-t', '--tolerance', help='Tolerance around the mean of alignment scores for a set of reads classified as "both"', type=int, default=5)
+	parser.add_argument('-d', '--difference', help='Difference between the sum of mouse and human alignment scores for a set of reads classified as "both"', type=int, default=5)
 	args = parser.parse_args()
 	return parser, args 
 
@@ -32,7 +35,7 @@ def is_prefix_dependent(parser, args):
 		if not (args.bam is True or args.fastq is True):
 			parser.error("The --prefix argument requires the use of --bam or --fastq")
 
-def initialize_user_input(args):
+def initialize_file_input(args):
 	# assign arguments to script variables
 	mouse_bam = AlignmentFile(args.mouse,"rb")
 	human_bam = AlignmentFile(args.human,"rb")
@@ -41,6 +44,12 @@ def initialize_user_input(args):
 	is_fastq = args.fastq
 	prefix = args.prefix
 	return mouse_bam, human_bam, output_dir, is_bam, is_fastq, prefix
+
+def initialize_threshold_inputs(args):
+	neither_threshold = args.neither_threshold
+	tolerance = args.tolerance
+	difference = args.difference
+	return neither_threshold, tolerance, difference
 
 def is_prefix(prefix):
 	if prefix is None:
@@ -134,18 +143,18 @@ def check_read_names(mouse_read_1_name, mouse_read_2_name, human_read_1_name, hu
 	if not (mouse_read_1_name == mouse_read_2_name and human_read_1_name == human_read_2_name and mouse_read_1_name == human_read_1_name):
  		sys.exit("read names do not match: M1:{:s} M2:{:s} H1:{:s} H2:{:s}\n".format(mouse_read_1_name, mouse_read_2_name, human_read_1_name, human_read_2_name))
 
-def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS):
+def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, neither_threshold, tolerance, difference):
 	
 	scores = [mr1_AS, mr2_AS, hr1_AS, hr2_AS]
 	sum_m = scores[0] + scores[1]
 	sum_h = scores[2] + scores[3]
 	mean = (sum_m + sum_h) / 4
-	low = mean - 5
-	high = mean + 5
+	low = mean - tolerance
+	high = mean + tolerance
 	
-	if sum_m < 40 and sum_h < 40:
+	if sum_m < neither_threshold and sum_h < neither_threshold:
 		classification = "neither"
-	elif all(low < score < high for score in scores) or abs(sum_m - sum_h) <= 5:
+	elif all(low < score < high for score in scores) or abs(sum_m - sum_h) <= difference:
 		classification = "both"
 	elif sum_m < sum_h:
 		classification = "graft"
@@ -187,7 +196,7 @@ def calculate_percentage(count, total_count):
 	return percentage
 
 def display_output(percentages):
-	sys.stdout.write("Percentage of Reads in Each Class\n\nHost:{:.2f}\nGraft:{:.2f}\nBoth:{:.2f}\nAmbiguous:{:.2f}\nNeither:{:.2f}"
+	sys.stdout.write("Percentage of Reads in Each Class\n\nHost:{:.2f}\nGraft:{:.2f}\nBoth:{:.2f}\nAmbiguous:{:.2f}\nNeither:{:.2f}\n"
 		.format(percentages[0],percentages[1],percentages[2],percentages[3],percentages[4]))
 
 def close_file(file):
@@ -221,7 +230,8 @@ if __name__ == '__main__':
 
 	parser, args = parse_input()
 	is_prefix_dependent(parser, args)
-	mouse_bam, human_bam, output_dir, is_bam, is_fastq, prefix = initialize_user_input(args)
+	mouse_bam, human_bam, output_dir, is_bam, is_fastq, prefix = initialize_file_input(args)
+	neither_threshold, tolerance, difference = initialize_threshold_inputs(args)
 	prefix = is_prefix(prefix)
 	if is_fastq:
 		fastq_output_1, fastq_output_2 = create_fastq_output(output_dir, prefix)
@@ -231,12 +241,12 @@ if __name__ == '__main__':
 
 	# mouse_primary, mouse_secondary = filter_bam(mouse_bam, 'mouse') # change variable names to graft_bam and host_bam?
 	# human_primary, human_secondary = filter_bam(human_bam, 'human')
-	human_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/human_primary.bam', 'rb')
-	mouse_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/mouse_primary.bam', 'rb')	
-	human_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/human_secondary.bam', 'rb')
-	mouse_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/testing_classifier_scripts/test/mouse_secondary.bam', 'rb')
+	human_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/human_primary.bam', 'rb')
+	mouse_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/mouse_primary.bam', 'rb')	
+	human_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/human_secondary.bam', 'rb')
+	mouse_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/mouse_secondary.bam', 'rb')
 
-	human_secondary = reopen_bam(human_secondary)
+	# human_secondary = reopen_bam(human_secondary)
 	secondary_alignment = get_secondary_alignment(human_secondary)
 
 	# fetch() only reads in one read at a time. read_count ensures that the following methods run only if two reads have been read in
@@ -257,7 +267,7 @@ if __name__ == '__main__':
 			hr1_name, hr1_AS = get_data(human_reads[0])
 			hr2_name, hr2_AS = get_data(human_reads[1])
 			check_read_names(mr1_name, mr2_name, hr1_name, hr2_name)
-			classification = classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS)
+			classification = classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, neither_threshold, tolerance, difference)
 			increment_counters(classification, counters)
 			secondary_alignments, secondary_alignment = check_secondary_alignments(hr1_name, human_secondary, secondary_alignment)
 			all_reads = append_lists(human_reads, secondary_alignments)
