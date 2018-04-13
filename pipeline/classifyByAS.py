@@ -36,13 +36,14 @@ def is_prefix_dependent(parser, args):
 
 def initialize_file_input(args):
 	# assign arguments to script variables
-	mouse_bam = AlignmentFile(args.mouse,"rb")
-	human_bam = AlignmentFile(args.human,"rb")
+	mouse_bam = args.mouse
+	human_bam = args.human
+	template_bam = AlignmentFile(args.human, 'rb')
 	output_dir = args.output
 	is_bam = args.bam
 	is_fastq = args.fastq
 	prefix = args.prefix
-	return mouse_bam, human_bam, output_dir, is_bam, is_fastq, prefix
+	return mouse_bam, human_bam, template_bam, output_dir, is_bam, is_fastq, prefix
 
 def initialize_threshold_inputs(args):
 	neither_threshold = args.neither_threshold
@@ -130,20 +131,23 @@ def initialize_counters():
 	return counters
 
 # filter primary and secondary alignments
-def filter_bam(bam, species):
-	primary = AlignmentFile("{:s}_primary.bam".format(species), "wb", template = bam)
-	secondary = AlignmentFile("{:s}_secondary.bam".format(species), "wb", template = bam)
+def filter_bam(file, species):
+	bam = AlignmentFile(file,"rb")
+	primary = AlignmentFile("{:s}/{:s}_primary.bam".format(output_dir, species), "wb", template = bam)
+	secondary = AlignmentFile("{:s}/{:s}_secondary.bam".format(output_dir, species), "wb", template = bam)
 	for read in bam.fetch(until_eof=True):
 		if not read.is_secondary:
 			primary.write(read)
 		else:
 			secondary.write(read)
-	return primary, secondary
-
-def reopen_bam(bam):
 	bam.close()
-	bam = AlignmentFile("human_secondary.bam", 'rb')
-	return bam
+	primary.close()
+	secondary.close()
+
+def intialize_filtered_bams(species, output_dir):
+	primary = AlignmentFile('{:s}/{:s}_primary.bam'.format(output_dir, species), 'rb')
+	secondary = AlignmentFile('{:s}/{:s}_secondary.bam'.format(output_dir, species), 'rb')
+	return primary, secondary
 
 def get_secondary_alignment(secondary_bam):
 	secondary_alignment = next(secondary_bam)
@@ -238,7 +242,6 @@ def remove_temp_bam(file, output_dir):
 	except OSError:
 		print ("Error: File %s does not exist." % (path))
 
-
 # output results
 if __name__ == '__main__':
 	
@@ -249,33 +252,31 @@ if __name__ == '__main__':
 	import os
 	import tempfile
 	from pysam import AlignmentFile 
-
-	try:
-		# Python 3
-		from itertools import zip_longest
-	except ImportError:
-		# Python 2
-		from itertools import izip_longest as zip_longest
+	import multiprocessing as mp
+	import itertools
 
 	parser, args = parse_input()
 	is_prefix_dependent(parser, args)
-	mouse_bam, human_bam, output_dir, is_bam, is_fastq, prefix = initialize_file_input(args)
+	mouse_bam_path, human_bam_path, template_bam, output_dir, is_bam, is_fastq, prefix = initialize_file_input(args)
 	neither_threshold, tolerance, difference = initialize_threshold_inputs(args)
 	prefix = is_prefix(prefix)
 	if is_fastq:
 		fastq_output_1, fastq_output_2 = create_fastq_output(output_dir, prefix)
 	if is_bam:
-		output_bam = create_bam_output(human_bam, output_dir, prefix)
+		output_bam = create_bam_output(template_bam, output_dir, prefix)
 	counters = initialize_counters()
+	
+	arguments = [(mouse_bam_path, 'mouse'), (human_bam_path, 'human')]
+	with mp.Pool(2) as pool:
+		results = pool.starmap(filter_bam, arguments)
+	mouse_primary, mouse_secondary = intialize_filtered_bams('mouse', output_dir)
+	human_primary, human_secondary = intialize_filtered_bams('human', output_dir)
 
-	mouse_primary, mouse_secondary = filter_bam(mouse_bam, 'mouse') # change variable names to graft_bam and host_bam?
-	human_primary, human_secondary = filter_bam(human_bam, 'human')
 	# human_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/human_primary.bam', 'rb')
 	# mouse_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/mouse_primary.bam', 'rb')	
 	# human_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/human_secondary.bam', 'rb')
 	# mouse_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/mouse_secondary.bam', 'rb')
 
-	human_secondary = reopen_bam(human_secondary)
 	secondary_alignment = get_secondary_alignment(human_secondary)
 
 	# fetch() only reads in one read at a time. read_count ensures that the following methods run only if two reads have been read in
@@ -288,7 +289,7 @@ if __name__ == '__main__':
 	# bam_list = []
 
 	# iterate through file
-	for mouse_read, human_read in zip_longest(mouse_primary.fetch(until_eof=True), human_primary.fetch(until_eof=True)):
+	for mouse_read, human_read in itertools.zip_longest(mouse_primary.fetch(until_eof=True), human_primary.fetch(until_eof=True)):
 		mouse_reads[read_count] = mouse_read
 		human_reads[read_count] = human_read
 		read_count += 1
@@ -315,9 +316,9 @@ if __name__ == '__main__':
 					write_to_fastq(fastq_lists_2[classification], fastq_output_2[classification])
 
 	# write left over reads
-	for current_list, current_file in zip_longest(fastq_lists_1.items(),fastq_output_1.items()):
+	for current_list, current_file in itertools.zip_longest(fastq_lists_1.items(),fastq_output_1.items()):
 		write_to_fastq(current_list[1], current_file[1])
-	for current_list, current_file in zip_longest(fastq_lists_2.items(),fastq_output_2.items()):
+	for current_list, current_file in itertools.zip_longest(fastq_lists_2.items(),fastq_output_2.items()):
 		write_to_fastq(current_list[1], current_file[1])
 
 	# stats
