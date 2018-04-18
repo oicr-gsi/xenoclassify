@@ -560,22 +560,21 @@ if __name__ == '__main__':
 					write_to_fastq(fastq_lists_1[classification], fastq_output_1[classification])
 					write_to_fastq(fastq_lists_2[classification], fastq_output_2[classification])
 
-	# write left over reads
-	for current_list, current_file in itertools.zip_longest(fastq_lists_1.items(),fastq_output_1.items()):
-		write_to_fastq(current_list[1], current_file[1])
-	for current_list, current_file in itertools.zip_longest(fastq_lists_2.items(),fastq_output_2.items()):
-		write_to_fastq(current_list[1], current_file[1])
-
 	for key in counters:
 		percentages.append(calculate_percentage(counters[key],counters["total"]))
 	display_output(percentages)
 
 	# close files
 	if is_fastq:
+		for current_list, current_file in itertools.zip_longest(fastq_lists_1.items(),fastq_output_1.items()):
+			write_to_fastq(current_list[1], current_file[1])
+		for current_list, current_file in itertools.zip_longest(fastq_lists_2.items(),fastq_output_2.items()):
+			write_to_fastq(current_list[1], current_file[1])
 		for key,file in fastq_output_1.items():
 			close_file(file)
 		for key,file in fastq_output_2.items():
 			close_file(file)
+	
 	if is_bam:
 		close_file(output_bam)
 
