@@ -34,7 +34,7 @@ def is_valid_file(parser, arg):
 	"""
 	if not os.path.isfile(arg):
 		parser.error("The file %s does not exist" % arg)
-	if not re.search(r'(?<=[.])\w+',arg).group(0) == 'bam':
+	if not re.findall(r'(?<=[.])\w+',arg)[-1] == 'bam':
 		parser.error("The file %s is not a bam file" % arg)
 	else:
 		return arg
@@ -227,18 +227,18 @@ def initialize_counters():
 	}
 	return counters
 
-def filter_bam(bam, species):
+def filter_bam(bam_path, species):
 	"""Filter primary and secondary bam alignments into separate bam files.
 
 	Args: 
-		bam(:obj:`pysam.AlignmentFile`): The bam file to be filtered.
+		bam(str): Path to the bam file.
 		species(str): The reference genome species used to create the given bam file.
 	Returns:
 		primary(:obj:`pysam.AlignmentFile`): A bam file of all primary alignments.
 		secondary(:obj:`pysam.AlignmentFile`): A bam file of all secondary alignments.
 
 	"""
-	bam = AlignmentFile(file,"rb")
+	bam = AlignmentFile(bam_path,"rb")
 	primary = AlignmentFile("{:s}/{:s}_primary.bam".format(output_dir, species), "wb", template = bam)
 	secondary = AlignmentFile("{:s}/{:s}_secondary.bam".format(output_dir, species), "wb", template = bam)
 	for read in bam.fetch(until_eof=True):
