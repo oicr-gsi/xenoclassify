@@ -139,17 +139,17 @@ def create_fastq_output(output_dir, prefix):
 		fastq_output_2(dict): A wrapper for file handles to which R2 reads will be written.
 
 	"""
-	graft_1 = gzip.open("{:s}/{:s}graft_1.fastq.gzip".format(output_dir, prefix),"wt")
-	host_1 = gzip.open("{:s}/{:s}host_1.fastq.gzip".format(output_dir, prefix),"wt")
-	both_1 = gzip.open("{:s}/{:s}both_1.fastq.gzip".format(output_dir, prefix),"wt")
-	ambiguous_1 = gzip.open("{:s}/{:s}ambiguous_1.fastq.gzip".format(output_dir, prefix),"wt")
-	neither_1 = gzip.open("{:s}/{:s}neither_1.fastq.gzip".format(output_dir, prefix),"wt")
+	graft_1 = gzip.open("{:s}/{:s}graft_1.fastq.gz".format(output_dir, prefix),"wt")
+	host_1 = gzip.open("{:s}/{:s}host_1.fastq.gz".format(output_dir, prefix),"wt")
+	both_1 = gzip.open("{:s}/{:s}both_1.fastq.gz".format(output_dir, prefix),"wt")
+	ambiguous_1 = gzip.open("{:s}/{:s}ambiguous_1.fastq.gz".format(output_dir, prefix),"wt")
+	neither_1 = gzip.open("{:s}/{:s}neither_1.fastq.gz".format(output_dir, prefix),"wt")
 
-	graft_2 = gzip.open("{:s}/{:s}graft_2.fastq.gzip".format(output_dir, prefix),"wt")
-	host_2 = gzip.open("{:s}/{:s}host_2.fastq.gzip".format(output_dir, prefix),"wt")
-	both_2 = gzip.open("{:s}/{:s}both_2.fastq.gzip".format(output_dir, prefix),"wt")
-	ambiguous_2 = gzip.open("{:s}/{:s}ambiguous_2.fastq.gzip".format(output_dir, prefix),"wt")
-	neither_2 = gzip.open("{:s}/{:s}neither_2.fastq.gzip".format(output_dir, prefix),"wt")
+	graft_2 = gzip.open("{:s}/{:s}graft_2.fastq.gz".format(output_dir, prefix),"wt")
+	host_2 = gzip.open("{:s}/{:s}host_2.fastq.gz".format(output_dir, prefix),"wt")
+	both_2 = gzip.open("{:s}/{:s}both_2.fastq.gz".format(output_dir, prefix),"wt")
+	ambiguous_2 = gzip.open("{:s}/{:s}ambiguous_2.fastq.gz".format(output_dir, prefix),"wt")
+	neither_2 = gzip.open("{:s}/{:s}neither_2.fastq.gz".format(output_dir, prefix),"wt")
 
 	fastq_output_1 = {
 		"graft": graft_1,
