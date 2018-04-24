@@ -6,8 +6,8 @@ This script determines how similarly reads are classified by our classifier and 
 """
 
 def checkArguments ():
-	if len(sys.argv) != 7:
-		print "Usage: python verifyClassification.py xenome.fastq graft.fastq host.fastq both.fastq ambiguous.fastq neither.fastq"
+	if len(sys.argv) != 6:
+		print "Usage: python verifyClassification.py xenome.txt graft.txt host.txt both.txt neither.txt"
 
 def indexFile (in_file):
 	indexed_file = [line.rstrip('\n') for line in open(in_file)]
@@ -49,7 +49,6 @@ def outputResults (correct, incorrect, totals, g_correct, h_correct, b_correct, 
 	g_correct=round(float(g_correct)/totals[0]*100,1)
 	h_correct=round(float(h_correct)/totals[1]*100,1)
 	b_correct=round(float(b_correct)/totals[2]*100,1)
-	a_correct=round(float(a_correct)/totals[3]*100,1)
 	n_correct=round(float(n_correct)/totals[4]*100,1)
 	print "Percentage of Reads Classified Correctly\n"
 	print "Total: {:.1f}%".format(percentage_correct)
@@ -57,7 +56,6 @@ def outputResults (correct, incorrect, totals, g_correct, h_correct, b_correct, 
 	print "Host: {:.1f}%".format(h_correct)
 	print "Both: {:.1f}%".format(b_correct)
 	print "Neither: {:.1f}%".format(n_correct)
-	print "Ambiguous: {:.1f}%".format(a_correct)
 
 if __name__ == '__main__':
 	
@@ -72,8 +70,8 @@ if __name__ == '__main__':
 	graft, g_length = indexFile(sys.argv[2])
 	host, h_length = indexFile(sys.argv[3])
 	both, b_length = indexFile(sys.argv[4])
-	ambiguous, a_length = indexFile(sys.argv[5])
-	neither, n_length = indexFile(sys.argv[6])
+	ambiguous, a_length = ([], 0)
+	neither, n_length = indexFile(sys.argv[5])
 
 	# counters for arrays
 	g_count = 0
@@ -99,7 +97,7 @@ if __name__ == '__main__':
 		g_count = checkCounter(g_count,g_length)
 		h_count = checkCounter(h_count,h_length)
 		b_count = checkCounter(b_count,b_length)
-		a_count = checkCounter(a_count,a_length)
+		a_count = 0
 		n_count = checkCounter(n_count,n_length)
 
 		# separate read name and tag
@@ -118,9 +116,9 @@ if __name__ == '__main__':
 			h_count, correct, incorrect, h_correct = verifyClass(h_count, tag, "host", correct, incorrect, h_correct)
 		elif read_name == both[b_count]:
 			b_count, correct, incorrect, b_correct = verifyClass(b_count, tag, "both", correct, incorrect, b_correct)
-		elif read_name == ambiguous[a_count]:
-			a_count, correct, incorrect, a_correct = verifyClass(a_count, tag, "ambiguous", correct, incorrect, a_correct)
 		elif read_name == neither[n_count]:
 			n_count, correct, incorrect, n_correct = verifyClass(n_count, tag, "neither", correct, incorrect, n_correct)
+		else:
+			incorrect += 1
 
 	outputResults(correct, incorrect, totals, g_correct, h_correct, b_correct, a_correct, n_correct)

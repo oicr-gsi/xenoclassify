@@ -139,23 +139,20 @@ def create_fastq_output(output_dir, prefix):
 		fastq_output_2(dict): A wrapper for file handles to which R2 reads will be written.
 
 	"""
-	graft_1 = gzip.open("{:s}/{:s}graft_1.fastq.gz".format(output_dir, prefix),"wt")
-	host_1 = gzip.open("{:s}/{:s}host_1.fastq.gz".format(output_dir, prefix),"wt")
-	both_1 = gzip.open("{:s}/{:s}both_1.fastq.gz".format(output_dir, prefix),"wt")
-	ambiguous_1 = gzip.open("{:s}/{:s}ambiguous_1.fastq.gz".format(output_dir, prefix),"wt")
-	neither_1 = gzip.open("{:s}/{:s}neither_1.fastq.gz".format(output_dir, prefix),"wt")
+	graft_1 = open("{:s}/{:s}graft_1.fastq".format(output_dir, prefix),"wt")
+	host_1 = open("{:s}/{:s}host_1.fastq".format(output_dir, prefix),"wt")
+	both_1 = open("{:s}/{:s}both_1.fastq".format(output_dir, prefix),"wt")
+	neither_1 = open("{:s}/{:s}neither_1.fastq".format(output_dir, prefix),"wt")
 
-	graft_2 = gzip.open("{:s}/{:s}graft_2.fastq.gz".format(output_dir, prefix),"wt")
-	host_2 = gzip.open("{:s}/{:s}host_2.fastq.gz".format(output_dir, prefix),"wt")
-	both_2 = gzip.open("{:s}/{:s}both_2.fastq.gz".format(output_dir, prefix),"wt")
-	ambiguous_2 = gzip.open("{:s}/{:s}ambiguous_2.fastq.gz".format(output_dir, prefix),"wt")
-	neither_2 = gzip.open("{:s}/{:s}neither_2.fastq.gz".format(output_dir, prefix),"wt")
+	graft_2 = open("{:s}/{:s}graft_2.fastq".format(output_dir, prefix),"wt")
+	host_2 = open("{:s}/{:s}host_2.fastq".format(output_dir, prefix),"wt")
+	both_2 = open("{:s}/{:s}both_2.fastq".format(output_dir, prefix),"wt")
+	neither_2 = open("{:s}/{:s}neither_2.fastq".format(output_dir, prefix),"wt")
 
 	fastq_output_1 = {
 		"graft": graft_1,
 		"host": host_1,
 		"both": both_1,
-		"ambiguous": ambiguous_1,
 		"neither": neither_1
 	}
 
@@ -163,7 +160,6 @@ def create_fastq_output(output_dir, prefix):
 		"graft": graft_2,
 		"host": host_2,
 		"both": both_2,
-		"ambiguous": ambiguous_2,
 		"neither": neither_2
 	}
 
@@ -192,14 +188,12 @@ def create_fastq_lists():
 	graft = []
 	host = []
 	both = []
-	ambiguous = []
 	neither = []
 
 	fastq_list = {
 		"graft": graft,
 		"host": host,
 		"both": both,
-		"ambiguous": ambiguous,
 		"neither": neither
 	}
 	return fastq_list
@@ -215,13 +209,11 @@ def initialize_counters():
 	graft_count = 0; 
 	both_count = 0; 
 	neither_count = 0;
-	ambiguous_count = 0; 
 	total_count = 0; 
 	counters = {
 		"host": host_count,
 		"graft": graft_count,
 		"both": both_count,
-		"ambiguous": ambiguous_count,
 		"neither": neither_count,
 		"total": total_count
 	}
@@ -334,8 +326,6 @@ def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, neither_threshold, tolerance, diffe
 		classification = "graft"
 	elif sum_m > sum_h:
 		classification = "host"
-	else:
-		classification = "ambiguous"
 
 	return classification
 
@@ -461,8 +451,8 @@ def display_output(percentages):
 		percentages(list): A list containing all percentages. 
 
 	"""
-	sys.stdout.write("Percentage of Reads in Each Class\n\nHost: {:.2f}\nGraft: {:.2f}\nBoth: {:.2f}\nAmbiguous: {:.2f}\nNeither: {:.2f}\n"
-		.format(percentages[0],percentages[1],percentages[2],percentages[3],percentages[4]))
+	sys.stdout.write("Percentage of Reads in Each Class\n\nHost: {:.2f}\nGraft: {:.2f}\nBoth: {:.2f}\nNeither: {:.2f}\n"
+		.format(percentages[0],percentages[1],percentages[2],percentages[3]))
 
 def close_file(file):
 	"""Close the file.
@@ -581,4 +571,3 @@ if __name__ == '__main__':
 	for file_handle, file_name in [(human_primary, 'human_primary.bam'),(human_secondary, 'human_secondary.bam'),(mouse_primary, 'mouse_primary.bam'), (mouse_secondary, 'mouse_secondary.bam')]:
 		close_file(file_handle)
 		remove_temp_bam(file_name, output_dir)
-		
