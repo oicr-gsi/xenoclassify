@@ -6,8 +6,8 @@ def parse_input ():
 		args(:obj:`ArgumentParser.parse_args`): A namespace containing the script's input arguments.
 	"""
 	parser = argparse.ArgumentParser(description='Classify reads as host, graft, both, neither, or ambiguous.')
-	parser.add_argument('-M', '--mouse', help='BAM file for reads aligned to mouse' , type=lambda x: is_valid_file(parser, x), required=True)
-	parser.add_argument('-H','--human', help='BAM file for reads aligned to human' , type=lambda x: is_valid_file(parser, x), required=True)
+	parser.add_argument('-H', '--host', help='BAM file for reads aligned to host' , type=lambda x: is_valid_file(parser, x), required=True)
+	parser.add_argument('-G','--graft', help='BAM file for reads aligned to graft' , type=lambda x: is_valid_file(parser, x), required=True)
 	parser.add_argument('-O', '--output', help='Output directory for output bam and fastq files. Use "." for current working directory', type=lambda x: is_valid_directory(parser, x), required=True)
 	parser.add_argument('-b', '--bam', help='Ouput BAM file with reads tagged according to assigned class', action='store_true')
 	parser.add_argument('-f', '--fastq', help='Output FASTQ files', action='store_true')
@@ -88,9 +88,9 @@ def initialize_file_input(args):
 		prefix(str or None): The string given if '--prefix' specified, 'None' if not.
 
 	"""
-	mouse_bam = args.mouse
-	human_bam = args.human
-	template_bam = AlignmentFile(args.human, 'rb')
+	mouse_bam = args.host
+	human_bam = args.graft
+	template_bam = AlignmentFile(args.graft, 'rb')
 	output_dir = args.output
 	is_bam = args.bam
 	is_fastq = args.fastq

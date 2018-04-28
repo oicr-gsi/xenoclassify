@@ -47,7 +47,7 @@ def concatenateAndSort(graft, host, both, ambiguous, neither, sample, stdout, st
 
 # run classifier on sample
 def runClassifier(classify_results_dir, sample, stdout, stderr, classify_script, human_bam, mouse_bam):
-	os.system("cd {:s}{:s}; qsub -cwd -b y -N _{:s}_run_classifier -hold_jid _{:s}_concatenate -l h_vmem=10g -m beas -M \"Heather.D'Souza@oicr.on.ca\" -o {:s} -e {:s} \"module load python-gsi/3.6.4; python3.6 {:s} -M {:s} -H {:s} -O {:s}{:s} -f -b\""
+	os.system("cd {:s}{:s}; qsub -cwd -b y -N _{:s}_run_classifier -hold_jid _{:s}_concatenate -l h_vmem=10g -m beas -M \"Heather.D'Souza@oicr.on.ca\" -o {:s} -e {:s} \"module load python-gsi/3.6.4; python3.6 {:s} -H {:s} -G {:s} -O {:s}{:s} -f -b\""
 		.format(classify_results_dir, sample, sample, sample, stdout, stderr, classify_script, mouse_bam, human_bam, classify_results_dir, sample))
 
 def extractNames(classify_results_dir, sample, extract_names_script, in_file, out_file, tag):
