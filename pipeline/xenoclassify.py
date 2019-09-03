@@ -14,7 +14,7 @@ def parse_input ():
 	parser.add_argument('-p', '--prefix', help='Prefix for BAM and FASTQ file names', type=str)
 	parser.add_argument('-n', '--neither-threshold', help='Alignment score below which all reads in a set are classified as "neither"', type=int, default=40)
 	parser.add_argument('-t', '--tolerance', help='Tolerance around the mean of alignment scores for a set of reads classified as "both"', type=int, default=5)
-	parser.add_argument('-d', '--difference', help='Difference between the sum of mouse and human alignment scores for a set of reads classified as "both"', type=int, default=5)
+	parser.add_argument('-d', '--difference', help='Difference between the sum of host and graft alignment scores for a set of reads classified as "both"', type=int, default=5)
 	args = parser.parse_args()
 	return parser, args 
 
@@ -80,22 +80,22 @@ def initialize_file_input(args):
 	Args:
 		args (:obj:`ArgumentParser.parse_args`): A namespace containing the script's input arguments.
 	Returns:
-		mouse_bam(:obj:`pysam.AlignmentFile`): A bam file object of reads aligned to a mouse index.
-		human_bam(:obj:`pysam.AlignmentFile`): A bam file object of reads aligned to a human index.
+		host_bam(:obj:`pysam.AlignmentFile`): A bam file object of reads aligned to a host index.
+		graft_bam(:obj:`pysam.AlignmentFile`): A bam file object of reads aligned to a graft index.
 		output_dir(str): Directory path for output files.
 		is_bam(bool): True if '--bam' specified, False if not.
 		if_fastq(bool); True if '--fastq' specified, False if not.
 		prefix(str or None): The string given if '--prefix' specified, 'None' if not.
 
 	"""
-	mouse_bam = args.host
-	human_bam = args.graft
+	host_bam = args.host
+	graft_bam = args.graft
 	template_bam = AlignmentFile(args.graft, 'rb')
 	output_dir = args.output
 	is_bam = args.bam
 	is_fastq = args.fastq
 	prefix = args.prefix
-	return mouse_bam, human_bam, template_bam, output_dir, is_bam, is_fastq, prefix
+	return host_bam, graft_bam, template_bam, output_dir, is_bam, is_fastq, prefix
 
 def initialize_threshold_inputs(args):
 	"""Set threshold-related inputs to variables with concise names.
@@ -105,7 +105,7 @@ def initialize_threshold_inputs(args):
 	Returns:
 		neither_threshold(int): Alignment score below which all reads in a set are classified as "neither."
 		tolerance(int): Tolerance around the mean of alignment scores for a set of reads classified as "both."
-		difference(int): Difference between the sum of mouse and human alignment scores for a set of reads classified as "both."
+		difference(int): Difference between the sum of host and graft alignment scores for a set of reads classified as "both."
 
 	"""
 	neither_threshold = args.neither_threshold
@@ -219,7 +219,7 @@ def initialize_counters():
 	}
 	return counters
 
-def filter_bam(bam_path, species):
+def filter_bam(bam_path, species, pid):
 	"""Filter primary and secondary bam alignments into separate bam files.
 
 	Args: 
@@ -231,8 +231,8 @@ def filter_bam(bam_path, species):
 
 	"""
 	bam = AlignmentFile(bam_path,"rb")
-	primary = AlignmentFile("{:s}/{:s}_primary.bam".format(output_dir, species), "wb", template = bam)
-	secondary = AlignmentFile("{:s}/{:s}_secondary.bam".format(output_dir, species), "wb", template = bam)
+	primary = AlignmentFile("{:s}/{:d}_{:s}_primary.bam".format(output_dir, pid, species), "wb", template = bam)
+	secondary = AlignmentFile("{:s}/{:d}_{:s}_secondary.bam".format(output_dir, pid, species), "wb", template = bam)
 	for read in bam.fetch(until_eof=True):
 		if not read.is_secondary:
 			primary.write(read)
@@ -242,7 +242,7 @@ def filter_bam(bam_path, species):
 	primary.close()
 	secondary.close()
 
-def intialize_filtered_bams(species, output_dir):
+def intialize_filtered_bams(species, output_dir, pid):
 	"""Open filtered bams as read objects
 	
 	Args:
@@ -252,8 +252,8 @@ def intialize_filtered_bams(species, output_dir):
 		primary(:obj:`pysam.AlignmentFile`): A bam file containing only primary alignments.
 		secondary(:obj:`pysam.AlignmentFile`): A bam file containing only secondary alignments.
 	"""
-	primary = AlignmentFile('{:s}/{:s}_primary.bam'.format(output_dir, species), 'rb')
-	secondary = AlignmentFile('{:s}/{:s}_secondary.bam'.format(output_dir, species), 'rb')
+	primary = AlignmentFile('{:s}/{:d}_{:s}_primary.bam'.format(output_dir, pid, species), 'rb')
+	secondary = AlignmentFile('{:s}/{:d}_{:s}_secondary.bam'.format(output_dir, pid, species), 'rb')
 	return primary, secondary
 
 def get_secondary_alignment(secondary_bam):
@@ -282,18 +282,18 @@ def get_data(read):
 	alignment_score = read.get_tag('AS', with_value_type=False)
 	return name, alignment_score
 
-def check_read_names(mouse_read_1_name, mouse_read_2_name, human_read_1_name, human_read_2_name):
+def check_read_names(host_read_1_name, host_read_2_name, graft_read_1_name, graft_read_2_name):
 	"""Check that all given read names match.
 
 	Args: 
-		mouse_read_1_name(str): The read name of the first read in a set of paired-reads aligned to the mouse bam.
-		mouse_read_2_name(str):	The read name of the second read in a set of paried-read aligned to the mouse bam.
-		human_read_1_name(str): The read name of the first read in a set of paired-reads aligned to the human bam.
-		human_read_2_name(str): The read name of the second read in a set of paried-read aligned to the human bam.
+		host_read_1_name(str): The read name of the first read in a set of paired-reads aligned to the host bam.
+		host_read_2_name(str):	The read name of the second read in a set of paried-read aligned to the host bam.
+		graft_read_1_name(str): The read name of the first read in a set of paired-reads aligned to the graft bam.
+		graft_read_2_name(str): The read name of the second read in a set of paried-read aligned to the graft bam.
 
 	"""
-	if not (mouse_read_1_name == mouse_read_2_name and human_read_1_name == human_read_2_name and mouse_read_1_name == human_read_1_name):
- 		sys.exit("read names do not match: M1:{:s} M2:{:s} H1:{:s} H2:{:s}\n".format(mouse_read_1_name, mouse_read_2_name, human_read_1_name, human_read_2_name))
+	if not (host_read_1_name == host_read_2_name and graft_read_1_name == graft_read_2_name and host_read_1_name == graft_read_1_name):
+ 		sys.exit("read names do not match: M1:{:s} M2:{:s} H1:{:s} H2:{:s}\n".format(host_read_1_name, host_read_2_name, graft_read_1_name, graft_read_2_name))
 
 def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, neither_threshold, tolerance, difference):
 	"""Classify read as 'graft', 'host', 'both', 'neither', or 'ambiguous'.
@@ -301,13 +301,13 @@ def classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, neither_threshold, tolerance, diffe
 	This function classifies reads based on the set of rules defined below.
 
 	Args:
-		mr1_AS(int): The alignment score of the first read in a set of paired-reads aligned to the mouse bam.
-		mr2_AS(int): The alignment score of the second read in a set of paired-reads aligned to the mouse bam.
-		hr1_AS(int): The alignment score of the first read in a set of paired-reads aligned to the human bam.
-		hr2_AS(int): The alignment score of the second read in a set of paired-reads aligned to the human bam.
+		mr1_AS(int): The alignment score of the first read in a set of paired-reads aligned to the host bam.
+		mr2_AS(int): The alignment score of the second read in a set of paired-reads aligned to the host bam.
+		hr1_AS(int): The alignment score of the first read in a set of paired-reads aligned to the graft bam.
+		hr2_AS(int): The alignment score of the second read in a set of paired-reads aligned to the graft bam.
 		neither_threshold(int): Alignment score below which all reads in a set are classified as "neither."
 		tolerance(int): Tolerance around the mean of alignment scores for a set of reads classified as "both."
-		difference(int): Difference between the sum of mouse and human alignment scores for a set of reads classified as "both."
+		difference(int): Difference between the sum of host and graft alignment scores for a set of reads classified as "both."
 	Returns:
 		classification(str): The category to which a read has been assigned.
 	"""
@@ -492,60 +492,55 @@ if __name__ == '__main__':
 
 	parser, args = parse_input()
 	is_prefix_dependent(parser, args)
-	mouse_bam_path, human_bam_path, template_bam, output_dir, is_bam, is_fastq, prefix = initialize_file_input(args)
+	host_bam_path, graft_bam_path, template_bam, output_dir, is_bam, is_fastq, prefix = initialize_file_input(args)
 	neither_threshold, tolerance, difference = initialize_threshold_inputs(args)
 	prefix = is_prefix(prefix)
+	p_id = os.getpid()
 	if is_fastq:
 		fastq_output_1, fastq_output_2 = create_fastq_output(output_dir, prefix)
 	if is_bam:
 		output_bam = create_bam_output(template_bam, output_dir, prefix)
 	counters = initialize_counters()
 	
-	arguments = [(mouse_bam_path, 'mouse'), (human_bam_path, 'human')]
+	arguments = [(host_bam_path, 'host', p_id), (graft_bam_path, 'graft', p_id)]
 	with mp.Pool(2) as pool:
 		results = pool.starmap(filter_bam, arguments)
-	mouse_primary, mouse_secondary = intialize_filtered_bams('mouse', output_dir)
-	human_primary, human_secondary = intialize_filtered_bams('human', output_dir)
+	host_primary, host_secondary = intialize_filtered_bams('host', output_dir, p_id)
+	graft_primary, graft_secondary = intialize_filtered_bams('graft', output_dir, p_id)
 
-	# human_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/human_primary.bam', 'rb')
-	# mouse_primary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/mouse_primary.bam', 'rb')	
-	# human_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/human_secondary.bam', 'rb')
-	# mouse_secondary = AlignmentFile('/.mounts/labs/gsiprojects/gsi/Xenograft-Classifier/data/seqware_prov_report/projects/AMLXP/bwa/hg19/test_old_commit/current_changes/test_5/mouse_secondary.bam', 'rb')
-
-	secondary_alignment = get_secondary_alignment(human_secondary)
+	secondary_alignment = get_secondary_alignment(graft_secondary)
 
 	# fetch() only reads in one read at a time. read_count ensures that the following methods run only if two reads have been read in
 	read_count = 0 	
-	mouse_reads = [0,0]
-	human_reads = [0,0]
+	host_reads = [0,0]
+	graft_reads = [0,0]
 	percentages = []
 	fastq_lists_1 = create_fastq_lists()
 	fastq_lists_2 = create_fastq_lists()
-	# bam_list = []
 
 	# iterate through file
-	for mouse_read, human_read in itertools.zip_longest(mouse_primary.fetch(until_eof=True), human_primary.fetch(until_eof=True)):
-		mouse_reads[read_count] = mouse_read
-		human_reads[read_count] = human_read
+	for host_read, graft_read in itertools.zip_longest(host_primary.fetch(until_eof=True), graft_primary.fetch(until_eof=True)):
+		host_reads[read_count] = host_read
+		graft_reads[read_count] = graft_read
 		read_count += 1
 		if read_count % 2 == 0:
 			read_count = 0
-			mr1_name, mr1_AS = get_data(mouse_reads[0])
-			mr2_name, mr2_AS = get_data(mouse_reads[1])
-			hr1_name, hr1_AS = get_data(human_reads[0])
-			hr2_name, hr2_AS = get_data(human_reads[1])
+			mr1_name, mr1_AS = get_data(host_reads[0])
+			mr2_name, mr2_AS = get_data(host_reads[1])
+			hr1_name, hr1_AS = get_data(graft_reads[0])
+			hr2_name, hr2_AS = get_data(graft_reads[1])
 			check_read_names(mr1_name, mr2_name, hr1_name, hr2_name)
 			classification = classify(mr1_AS, mr2_AS, hr1_AS, hr2_AS, neither_threshold, tolerance, difference)
 			increment_counters(classification, counters)
-			secondary_alignments, secondary_alignment = check_secondary_alignments(hr1_name, human_secondary, secondary_alignment)
-			all_reads = append_lists(human_reads, secondary_alignments)
+			secondary_alignments, secondary_alignment = check_secondary_alignments(hr1_name, graft_secondary, secondary_alignment)
+			all_reads = append_lists(graft_reads, secondary_alignments)
 			if is_bam:
 				for read in all_reads:
 					read = add_tag(read, classification)
 					write_to_bam(read, output_bam)
 			if is_fastq:
-				convert_to_fastq(human_reads[0], fastq_lists_1[classification])
-				convert_to_fastq(human_reads[1], fastq_lists_2[classification])
+				convert_to_fastq(graft_reads[0], fastq_lists_1[classification])
+				convert_to_fastq(graft_reads[1], fastq_lists_2[classification])
 				if is_list_full(counters[classification]):
 					write_to_fastq(fastq_lists_1[classification], fastq_output_1[classification])
 					write_to_fastq(fastq_lists_2[classification], fastq_output_2[classification])
@@ -568,6 +563,6 @@ if __name__ == '__main__':
 	if is_bam:
 		close_file(output_bam)
 
-	for file_handle, file_name in [(human_primary, 'human_primary.bam'),(human_secondary, 'human_secondary.bam'),(mouse_primary, 'mouse_primary.bam'), (mouse_secondary, 'mouse_secondary.bam')]:
+	for file_handle, file_name in [(graft_primary, str(p_id) + '_graft_primary.bam'),(graft_secondary, str(p_id) + '_graft_secondary.bam'),(host_primary, str(p_id) + '_host_primary.bam'), (host_secondary, str(p_id) + '_host_secondary.bam')]:
 		close_file(file_handle)
 		remove_temp_bam(file_name, output_dir)
