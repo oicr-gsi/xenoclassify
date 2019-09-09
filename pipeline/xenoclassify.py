@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 def parse_input ():
 	"""Parse command-line arguments.
 
